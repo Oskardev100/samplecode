@@ -1,13 +1,12 @@
-const fs = require('fs');
+const fs = require('fs').promises;
 
-function readFile(callback) {
-    fs.readFile('data.json', 'utf8', function (err, data) {
-        if (err) {
-            callback(err);
-        } else {
-            callback(null, JSON.parse(data));
-        }
-    });
+async function readFile() {
+    try {
+        const data = await fs.readFile('data.json', 'utf8');
+        return JSON.parse(data);
+    } catch (err) {
+        throw new Error('Failed to read file');
+    }
 }
 
 module.exports = {

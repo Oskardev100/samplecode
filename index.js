@@ -1,32 +1,34 @@
 const http = require('http');
 const utils = require('./utils');
 const service = require('./service');
-const { timeStamp, time } = require('console');
+const config = require('./config');
+const logger = require('./logger');
+const responseFactory = require('./responseFactory');
 
-const hostname = '127.0.0.1';
-const port = 3000;
+const hostname = config.hostname;
+const port = config.port;
 
-http.createServer(function (req, res) {
-    if (req.url == '/data' && req.method == 'GET') {
-        utils.readFile(function (err, data) {
-            if (err) {
-                res.statusCode = 500;
-                res.setHeader('Content-Type', 'text/plain');
-                res.end('Error reading data');
-                console.log('Error:', err);
-            } else {
-                service.processData(data, function (result) {
-                    res.statusCode = 200;
-                    res.setHeader('Content-Type', 'application/json');
-                    res.end(JSON.stringify(result));
-                });
-            }
-        });
-    } else {
-        res.statusCode = 404;
-        res.setHeader('Content-Type', 'text/plain');
-        res.end('Not Found');
-    } 
-}).listen(port, hostname, () => {
-    console.log(`Server running at http://${hostname}:${port}/`);
+const server = http.createServer(async (req, res) => {
+    try {
+        if (req.url === '/data' && req.method === 'GET') {
+            const data = await utils.readFile();
+            const result = service.processData(data);
+            const response = responseFactory.createResponse(200, 'application/json', JSON.stringify(result));
+            res.writeHead(response.statusCode, { 'Content-Type': response.contentType });
+            res.end(response.body);
+        } else {
+            const response = responseFactory.createResponse(404, 'text/plain', 'Not Found');
+            res.writeHead(response.statusCode, { 'Content-Type': response.contentType });
+            res.end(response.body);
+        }
+    } catch (err) {
+        logger.error('Error:', err);
+        const response = responseFactory.createResponse(500, 'text/plain', 'Internal Server Error');
+        res.writeHead(response.statusCode, { 'Content-Type': response.contentType });
+        res.end(response.body);
+    }
+});
+
+server.listen(port, hostname, () => {
+    logger.info(`Server running at http://${hostname}:${port}/`);
 });
